@@ -1,3 +1,4 @@
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
@@ -10,12 +11,14 @@ import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ChangePasswordDialog } from '../auth/ChangePasswordDialog';
 import { useAuth } from '../../context/AuthContext';
 
 export function UserMenu() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const open = Boolean(anchorEl);
 
   const initials = user?.name
@@ -73,6 +76,17 @@ export function UserMenu() {
           </Typography>
         </Box>
         <Divider />
+        <MenuItem
+          onClick={() => {
+            setAnchorEl(null);
+            setChangePasswordOpen(true);
+          }}
+        >
+          <ListItemIcon>
+            <LockOutlinedIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Change password</ListItemText>
+        </MenuItem>
         <MenuItem onClick={handleLogout}>
           <ListItemIcon>
             <LogoutOutlinedIcon fontSize="small" />
@@ -80,6 +94,11 @@ export function UserMenu() {
           <ListItemText>Logout</ListItemText>
         </MenuItem>
       </Menu>
+
+      <ChangePasswordDialog
+        open={changePasswordOpen}
+        onClose={() => setChangePasswordOpen(false)}
+      />
     </>
   );
 }

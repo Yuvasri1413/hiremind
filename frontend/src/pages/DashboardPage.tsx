@@ -14,15 +14,18 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { ScoreBadge } from '../components/candidates/ScoreBadge';
 import { StatCard } from '../components/dashboard/StatCard';
 import { JobStatusChip } from '../components/jobs/JobStatusChip';
-import { mockDashboardStats, mockRecentJobs } from '../data/mockDashboard';
+import { useJobs } from '../context/JobsContext';
 import { useThemeMode } from '../context/ThemeContext';
 
 export function DashboardPage() {
+  const { jobs, stats } = useJobs();
   const { tokens: t } = useThemeMode();
+  const navigate = useNavigate();
+  const recentJobs = jobs.slice(0, 4);
 
   return (
     <Box>
@@ -45,12 +48,11 @@ export function DashboardPage() {
           </Typography>
         </Box>
         <Button
-          component={RouterLink}
-          to="/jobs"
           variant="contained"
           startIcon={<WorkOutlineOutlinedIcon />}
+          onClick={() => navigate('/jobs', { state: { openCreate: true } })}
         >
-          View all jobs
+          Create Job
         </Button>
       </Box>
 
@@ -59,21 +61,21 @@ export function DashboardPage() {
           <StatCard
             icon={<WorkOutlineOutlinedIcon />}
             label="Total Jobs"
-            value={mockDashboardStats.totalJobs}
+            value={stats.totalJobs}
           />
         </Grid>
         <Grid size={{ xs: 12, sm: 4 }}>
           <StatCard
             icon={<GroupOutlinedIcon />}
             label="Total Candidates"
-            value={mockDashboardStats.totalCandidates}
+            value={stats.totalCandidates}
           />
         </Grid>
         <Grid size={{ xs: 12, sm: 4 }}>
           <StatCard
             icon={<AssessmentOutlinedIcon />}
             label="Average Score"
-            value={mockDashboardStats.avgScore}
+            value={stats.avgScore}
             suffix="%"
           />
         </Grid>
@@ -120,7 +122,7 @@ export function DashboardPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {mockRecentJobs.map((job) => (
+              {recentJobs.map((job) => (
                 <TableRow
                   key={job.id}
                   hover
@@ -142,7 +144,7 @@ export function DashboardPage() {
                   <TableCell align="right">
                     <IconButton
                       component={RouterLink}
-                      to="/jobs"
+                      to={`/jobs/${job.id}`}
                       size="small"
                       aria-label={`View ${job.title}`}
                     >

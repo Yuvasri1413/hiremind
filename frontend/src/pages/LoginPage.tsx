@@ -7,6 +7,7 @@ import Typography from '@mui/material/Typography';
 import { useState, type FormEvent } from 'react';
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { AuthLayout } from '../components/layout/AuthLayout';
+import { DEMO_EMAIL, DEMO_LOGIN_HINT, DEMO_PASSWORD } from '../constants/demoAuth';
 import { useAuth } from '../context/AuthContext';
 
 export function LoginPage() {
@@ -20,7 +21,9 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   const from =
-    (location.state as { from?: string } | null)?.from ?? '/dashboard';
+    (location.state as { from?: string; message?: string } | null)?.from ?? '/dashboard';
+  const successMessage =
+    (location.state as { message?: string } | null)?.message ?? '';
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -45,6 +48,16 @@ export function LoginPage() {
   return (
     <AuthLayout title="Welcome back" subtitle="Sign in to your recruiter account">
       <Box component="form" onSubmit={handleSubmit} noValidate>
+        {successMessage && (
+          <Alert severity="success" sx={{ mb: 2 }}>
+            {successMessage}
+          </Alert>
+        )}
+
+        <Alert severity="info" sx={{ mb: 2 }}>
+          {DEMO_LOGIN_HINT}
+        </Alert>
+
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
             {error}
@@ -72,6 +85,27 @@ export function LoginPage() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
+
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }}>
+          <Link component={RouterLink} to="/forgot-password" variant="body2" underline="hover">
+            Forgot password?
+          </Link>
+        </Box>
+
+        <Button
+          type="button"
+          variant="outlined"
+          fullWidth
+          size="medium"
+          sx={{ mb: 1 }}
+          onClick={() => {
+            setEmail(DEMO_EMAIL);
+            setPassword(DEMO_PASSWORD);
+            setError('');
+          }}
+        >
+          Use demo account
+        </Button>
 
         <Button
           type="submit"

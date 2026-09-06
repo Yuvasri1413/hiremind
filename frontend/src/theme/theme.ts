@@ -114,6 +114,26 @@ export function createAppTheme(mode: ThemeMode): Theme {
           },
         },
       },
+      MuiOutlinedInput: {
+        styleOverrides: {
+          input: {
+            '&:-webkit-autofill': {
+              WebkitBoxShadow: `0 0 0 1000px ${t.bgPaper} inset`,
+              WebkitTextFillColor: t.textPrimary,
+              caretColor: t.textPrimary,
+              transition: 'background-color 5000s ease-in-out 0s',
+            },
+            '&:-webkit-autofill:hover': {
+              WebkitBoxShadow: `0 0 0 1000px ${t.bgPaper} inset`,
+              WebkitTextFillColor: t.textPrimary,
+            },
+            '&:-webkit-autofill:focus': {
+              WebkitBoxShadow: `0 0 0 1000px ${t.bgPaper} inset`,
+              WebkitTextFillColor: t.textPrimary,
+            },
+          },
+        },
+      },
       MuiTextField: {
         styleOverrides: {
           root: {

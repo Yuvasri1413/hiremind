@@ -2,47 +2,20 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from 'react';
-import type { AuthContextValue, Recruiter, StoredUser } from '../types/auth';
-
-const USERS_KEY = 'recruitment_users';
-const SESSION_KEY = 'recruitment_session';
+import { api, isMockMode } from '../api';
+import { MOCK_STORAGE_KEYS, readMockStorage } from '../mocks/mockStorage';
+import type { AuthContextValue, Recruiter } from '../types/auth';
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-function loadUsers(): StoredUser[] {
-  const raw = localStorage.getItem(USERS_KEY);
-  if (!raw) return [];
-  try {
-    return JSON.parse(raw) as StoredUser[];
-  } catch {
-    return [];
-  }
-}
-
-function saveUsers(users: StoredUser[]) {
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
-}
-
-function loadSession(): Recruiter | null {
-  const raw = localStorage.getItem(SESSION_KEY);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as Recruiter;
-  } catch {
-    return null;
-  }
-}
-
-function saveSession(user: Recruiter | null) {
-  if (user) {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(user));
-  } else {
-    localStorage.removeItem(SESSION_KEY);
-  }
+function getInitialSession(): Recruiter | null {
+  if (!isMockMode) return null;
+  return readMockStorage<Recruiter | null>(MOCK_STORAGE_KEYS.session, null);
 }
 
 type AuthProviderProps = {
@@ -50,62 +23,36 @@ type AuthProviderProps = {
 };
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [user, setUser] = useState<Recruiter | null>(() => loadSession());
+  const [user, setUser] = useState<Recruiter | null>(getInitialSession);
+
+  useEffect(() => {
+    if (!isMockMode) {
+      api.auth.getSession().then(setUser);
+    }
+  }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const normalizedEmail = email.trim().toLowerCase();
-    const found = loadUsers().find(
-      (u) => u.email === normalizedEmail && u.password === password,
-    );
-
-    if (!found) {
-      throw new Error('Invalid email or password');
-    }
-
-    const sessionUser: Recruiter = {
-      id: found.id,
-      name: found.name,
-      email: found.email,
-    };
-
-    saveSession(sessionUser);
+    const sessionUser = await api.auth.login(email, password);
     setUser(sessionUser);
   }, []);
 
-  const register = useCallback(
-    async (name: string, email: string, password: string) => {
-      const normalizedEmail = email.trim().toLowerCase();
-      const users = loadUsers();
+  const register = useCallback(async (name: string, email: string, password: string) => {
+    const sessionUser = await api.auth.register(name, email, password);
+    setUser(sessionUser);
+  }, []);
 
-      if (users.some((u) => u.email === normalizedEmail)) {
-        throw new Error('An account with this email already exists');
-      }
-
-      const newUser: StoredUser = {
-        id: crypto.randomUUID(),
-        name: name.trim(),
-        email: normalizedEmail,
-        password,
-      };
-
-      saveUsers([...users, newUser]);
-
-      const sessionUser: Recruiter = {
-        id: newUser.id,
-        name: newUser.name,
-        email: newUser.email,
-      };
-
-      saveSession(sessionUser);
-      setUser(sessionUser);
-    },
-    [],
-  );
-
-  const logout = useCallback(() => {
-    saveSession(null);
+  const logout = useCallback(async () => {
+    await api.auth.logout();
     setUser(null);
   }, []);
+
+  const changePassword = useCallback(
+    async (currentPassword: string, newPassword: string) => {
+      if (!user) throw new Error('Not authenticated');
+      await api.auth.changePassword(user.id, currentPassword, newPassword);
+    },
+    [user],
+  );
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -113,9 +60,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       isAuthenticated: Boolean(user),
       login,
       register,
+      changePassword,
       logout,
     }),
-    [user, login, register, logout],
+    [user, login, register, changePassword, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

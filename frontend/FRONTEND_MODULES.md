@@ -1,6 +1,6 @@
 # Frontend Build Progress
 
-Step-by-step module plan for the Recruitment AI frontend.
+Step-by-step module plan for the HireMind frontend.
 
 | Module | Scope | Status |
 |--------|-------|--------|
@@ -8,12 +8,30 @@ Step-by-step module plan for the Recruitment AI frontend.
 | **1** | Auth — Login & Register + dark/light theme | ✅ Done |
 | **2** | App shell — AppBar, sidebar, layout | ✅ Done |
 | **3** | Dashboard — stats cards, recent jobs | ✅ Done |
-| **4** | Jobs list & Create job form | ⏳ Next |
-| **5** | Job detail — Overview tab (JD + requirements) | Pending |
-| **6** | Job detail — Upload tab | Pending |
-| **7** | Candidates list | Pending |
-| **8** | Candidate detail (AI report) | Pending |
-| **9** | Workflow builder (React Flow) | Pending |
+| **4** | Jobs list, create/edit modals, view job | ✅ Done |
+| **5** | Job detail — Overview tab (JD + requirements) | ✅ Done |
+| **6** | Job detail — Upload tab | ✅ Done |
+| **7** | Candidates list | ✅ Done |
+| **8** | Candidate detail (AI report) | ✅ Done |
+| **9** | Workflow builder (React Flow) | ✅ Done |
+
+**Frontend MVP complete.** All flows use the mock API layer (`VITE_API_MODE=mock`).
+
+## Mock API layer
+
+All data flows go through `src/api` — switch to real backend with `VITE_API_MODE=live`.
+
+| Service | Mock | Live |
+|---------|------|------|
+| Auth | localStorage | `/auth/*` |
+| Jobs | localStorage | `/jobs/*` |
+| Candidates | seed data | `/jobs/:id/candidates` |
+| Workflows | localStorage | `/jobs/:id/workflow` |
+| Uploads | localStorage | `/jobs/:id/candidates/upload` |
+| Requirements | mock AI extract | `/jobs/:id` |
+| Candidate reports | mock AI report | `/candidates/:id` |
+
+Copy `frontend/.env.example` to `frontend/.env` (defaults to mock mode).
 
 ## Run locally
 
@@ -23,19 +41,35 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173
+## Module 9 — Workflow builder (complete)
 
-## Module 2 — App shell
+- `@xyflow/react` — visual pipeline canvas
+- `WorkflowBuilderPage` at `/jobs/:jobId/workflow` — palette, canvas, config drawer, save
+- `JobWorkflowTab` — embedded preview + **Open Workflow Builder**
+- Node types: Parse, Screen, Skill Match, Evaluate, Rank, Interview (color-coded)
+- Config drawer: thresholds, weights, interview question counts
+- Validation: requires Parse node, no cycles, all nodes connected
+- Workflows persisted per job in `localStorage`
 
-- `AppLayout` — AppBar + permanent sidebar + main content area
-- `Sidebar` — Dashboard & Jobs navigation with active state
-- `UserMenu` — avatar dropdown with logout
-- Theme toggle in AppBar (auth pages keep fixed toggle)
-- Responsive mobile drawer
+## Module 8 — Candidate detail
 
-## Module 3 — Dashboard
+- `CandidateDetailPage` — full AI report with rank, score, and status header
+- `PipelineProgress` — Parse → Screen → Match → Eval → Rank → Interview
+- Stage cards: Parsed Profile, Screening, Skill Match, Evaluation
+- `InterviewQuestionsSection` — Technical / Behavioral / Gap Probing tabs
+- Route: `/candidates/:candidateId`
 
-- 3 stat cards (Total Jobs, Candidates, Avg Score)
-- Recent jobs table with status chips & score badges
-- Mock data (`src/data/mockDashboard.ts`)
-- `/jobs` placeholder page for sidebar nav
+## Module 7 — Candidates list
+
+- `JobCandidatesTab` — search, status filter, sort, view action
+- Route: `/candidates/:candidateId`
+
+## Routes summary
+
+| Route | Page |
+|-------|------|
+| `/dashboard` | Dashboard |
+| `/jobs` | Jobs list |
+| `/jobs/:jobId` | Job detail (tabs) |
+| `/jobs/:jobId/workflow` | Workflow builder |
+| `/candidates/:candidateId` | Candidate AI report |

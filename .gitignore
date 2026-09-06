@@ -6,6 +6,13 @@ dist/
 dist-ssr/
 *.local
 
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.db
+
 # Environment & secrets
 .env
 .env.*
