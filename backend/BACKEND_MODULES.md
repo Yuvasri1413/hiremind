@@ -6,41 +6,48 @@ Step-by-step module plan for the HireMind FastAPI backend.
 |--------|-------|--------|
 | **0** | Project setup (FastAPI, config, health check) | ✅ Done |
 | **1** | Auth — register, login, JWT, `/auth/me` | ✅ Done |
-| **2** | Jobs CRUD + extracted requirements (mock JD processor) | ⏳ Next |
-| **3** | Workflows — save/load pipeline per job | Pending |
-| **4** | Candidates — upload, list, pipeline status | Pending |
-| **5** | AI agents + orchestrator | Pending |
-| **6** | Dashboard stats API | Pending |
-| **7** | Frontend API integration | Pending |
+| **2** | Jobs CRUD + extracted requirements (mock JD processor) | ✅ Done |
+| **3** | Workflows — save/load pipeline per job | ✅ Done |
+| **4** | Candidates — upload, list, pipeline status | ✅ Done |
+| **5** | AI agents + orchestrator | ✅ Done |
+| **6** | Dashboard stats API | ✅ Done |
+| **7** | Frontend API integration | ✅ Done |
 
 ## Run locally
 
 ```bash
+# Terminal 1 — backend
 cd backend
-python -m venv .venv
-
-# Windows
 .venv\Scripts\activate
-
-pip install -r requirements.txt
-cp .env.example .env   # edit JWT_SECRET for production
-
 uvicorn app.main:app --reload --port 8000
+
+# Terminal 2 — frontend (live mode)
+cd frontend
+# Set VITE_API_MODE=live in .env
+npm run dev
 ```
 
-- API: http://localhost:8000
-- Docs: http://localhost:8000/docs
-- Health: http://localhost:8000/health
+- API: http://localhost:8000/docs
+- Frontend: http://localhost:5173
+- Demo login: `recruiter@hiremind.com` / `password123`
 
-## Module 1 — Auth (current)
+## Module 7 — Frontend integration (complete)
 
-- `POST /auth/register` — create recruiter account
-- `POST /auth/login` — returns JWT access token
-- `GET /auth/me` — current user profile (Bearer token)
-- Passwords hashed with bcrypt · JWT HS256 · SQLite dev database
+Frontend `VITE_API_MODE=live` connects to this backend via `frontend/src/api/live/`.
 
-## Module 0 — Setup
+| Frontend service | Backend endpoints |
+|------------------|-------------------|
+| Auth | `/auth/login`, `/auth/register`, `/auth/me` |
+| Jobs | `/jobs`, `/jobs/{id}` |
+| Dashboard stats | `/dashboard/stats` |
+| Candidates | `/jobs/{id}/candidates`, `/candidates/{id}` |
+| Workflows | `/jobs/{id}/workflow` |
+| Requirements | `/jobs/{id}` (requirements field) |
+| Candidate reports | `/candidates/{id}/report` |
+| Upload + process | `/jobs/{id}/candidates/upload`, `/jobs/{id}/candidates/process` |
 
-- FastAPI app with CORS for `http://localhost:5173`
-- SQLAlchemy + configurable `DATABASE_URL`
-- Pydantic settings from `.env`
+JWT stored in `localStorage` as `hiremind_access_token`.
+
+## All backend modules complete
+
+See git history and prior module sections for endpoint details per feature area.

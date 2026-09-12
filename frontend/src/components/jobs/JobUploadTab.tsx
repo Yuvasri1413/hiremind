@@ -21,8 +21,10 @@ import TableRow from '@mui/material/TableRow';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api } from '../../api';
+import { api, isMockMode } from '../../api';
+import { liveFetch, liveUpload } from '../../api/live';
 import { formatFileSize } from '../../mocks/services/uploadsMock';
+import { useCandidates } from '../../context/CandidatesContext';
 import { useThemeMode } from '../../context/ThemeContext';
 import {
   ACCEPTED_RESUME_MIME,
@@ -56,6 +58,7 @@ const statusColors: Record<
 
 export function JobUploadTab({ jobId }: JobUploadTabProps) {
   const { tokens: t } = useThemeMode();
+  const { refresh: refreshCandidates } = useCandidates();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploads, setUploads] = useState<ResumeUploadItem[]>([]);
   const [dragOver, setDragOver] = useState(false);
@@ -146,7 +149,51 @@ export function JobUploadTab({ jobId }: JobUploadTabProps) {
     }
 
     setError(null);
-    files.forEach(simulateUpload);
+    if (isMockMode) {
+      files.forEach(simulateUpload);
+      return;
+    }
+
+    void uploadLiveFiles(files);
+  }
+
+  async function uploadLiveFiles(files: File[]) {
+    const pendingItems: ResumeUploadItem[] = files.map((file) => ({
+      id: crypto.randomUUID(),
+      fileName: file.name,
+      fileSize: file.size,
+      status: 'uploading',
+      progress: 40,
+      addedAt: new Date().toISOString(),
+    }));
+
+    setUploads((current) => [...pendingItems, ...current]);
+
+    try {
+      const formData = new FormData();
+      files.forEach((file) => formData.append('files', file));
+      await liveUpload(`/jobs/${jobId}/candidates/upload`, formData);
+      await refreshCandidates();
+
+      setUploads((current) =>
+        current.map((item) =>
+          pendingItems.some((pending) => pending.id === item.id)
+            ? { ...item, status: 'ready' as const, progress: 100 }
+            : item,
+        ),
+      );
+      setSnackbar(`${files.length} resume${files.length > 1 ? 's' : ''} uploaded. Click Start Processing to run the pipeline.`);
+    } catch (uploadError) {
+      const message = uploadError instanceof Error ? uploadError.message : 'Upload failed';
+      setError(message);
+      setUploads((current) =>
+        current.map((item) =>
+          pendingItems.some((pending) => pending.id === item.id)
+            ? { ...item, status: 'failed' as const, progress: 0 }
+            : item,
+        ),
+      );
+    }
   }
 
   function handleRemove(id: string) {
@@ -159,21 +206,56 @@ export function JobUploadTab({ jobId }: JobUploadTabProps) {
     );
     if (readyIds.size === 0) return;
 
-    const processing = uploads.map((item) =>
-      readyIds.has(item.id) ? { ...item, status: 'processing' as const, progress: 100 } : item,
-    );
-    persist(processing);
-    setSnackbar(`Processing started for ${readyIds.size} resume${readyIds.size > 1 ? 's' : ''}.`);
+    if (isMockMode) {
+      const processing = uploads.map((item) =>
+        readyIds.has(item.id) ? { ...item, status: 'processing' as const, progress: 100 } : item,
+      );
+      persist(processing);
+      setSnackbar(`Processing started for ${readyIds.size} resume${readyIds.size > 1 ? 's' : ''}.`);
 
-    window.setTimeout(() => {
-      setUploads((current) => {
-        const updated = current.map((item) =>
-          readyIds.has(item.id) ? { ...item, status: 'done' as const } : item,
-        );
-        void api.uploads.save(jobId, updated);
-        return updated;
+      window.setTimeout(() => {
+        setUploads((current) => {
+          const updated = current.map((item) =>
+            readyIds.has(item.id) ? { ...item, status: 'done' as const } : item,
+          );
+          void api.uploads.save(jobId, updated);
+          return updated;
+        });
+      }, 2000);
+      return;
+    }
+
+    void processLivePipeline(readyIds);
+  }
+
+  async function processLivePipeline(readyIds: Set<string>) {
+    setUploads((current) =>
+      current.map((item) =>
+        readyIds.has(item.id) ? { ...item, status: 'processing' as const, progress: 100 } : item,
+      ),
+    );
+
+    try {
+      await liveFetch(`/jobs/${jobId}/candidates/process`, {
+        method: 'POST',
+        body: JSON.stringify({}),
       });
-    }, 2000);
+      await refreshCandidates();
+      setUploads((current) =>
+        current.map((item) =>
+          readyIds.has(item.id) ? { ...item, status: 'done' as const, progress: 100 } : item,
+        ),
+      );
+      setSnackbar(`Pipeline completed for ${readyIds.size} resume${readyIds.size > 1 ? 's' : ''}.`);
+    } catch (processError) {
+      const message = processError instanceof Error ? processError.message : 'Processing failed';
+      setError(message);
+      setUploads((current) =>
+        current.map((item) =>
+          readyIds.has(item.id) ? { ...item, status: 'failed' as const } : item,
+        ),
+      );
+    }
   }
 
   return (

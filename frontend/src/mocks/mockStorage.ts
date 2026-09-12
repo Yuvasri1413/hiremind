@@ -8,11 +8,6 @@ export const MOCK_STORAGE_KEYS = {
   uploads: (jobId: string) => `hiremind_mock_uploads_${jobId}`,
 } as const;
 
-type PasswordResetRecord = {
-  token: string;
-  expiresAt: string;
-};
-
 export function readMockStorage<T>(key: string, seed: T): T {
   const raw = localStorage.getItem(key);
   if (!raw) return seed;

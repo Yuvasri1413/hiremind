@@ -15,21 +15,43 @@ Step-by-step module plan for the HireMind frontend.
 | **8** | Candidate detail (AI report) | ✅ Done |
 | **9** | Workflow builder (React Flow) | ✅ Done |
 
-**Frontend MVP complete.** All flows use the mock API layer (`VITE_API_MODE=mock`).
+**Frontend MVP complete.** Switch between mock and live API with `VITE_API_MODE` in `.env`.
 
-## Mock API layer
+## API modes
 
-All data flows go through `src/api` — switch to real backend with `VITE_API_MODE=live`.
+| Mode | Env | Data source |
+|------|-----|-------------|
+| **mock** (default) | `VITE_API_MODE=mock` | localStorage |
+| **live** | `VITE_API_MODE=live` | FastAPI backend at `VITE_API_BASE_URL` |
+
+### Live mode setup
+
+```bash
+# Terminal 1
+cd backend && .venv\Scripts\uvicorn app.main:app --reload --port 8000
+
+# Terminal 2
+cd frontend
+# .env: VITE_API_MODE=live
+npm run dev
+```
+
+Login with demo account: `recruiter@hiremind.com` / `password123`
+
+## Mock / Live API layer
+
+All data flows go through `src/api` — implemented in `src/api/live/` for production.
 
 | Service | Mock | Live |
 |---------|------|------|
 | Auth | localStorage | `/auth/*` |
 | Jobs | localStorage | `/jobs/*` |
+| Dashboard stats | computed from jobs | `/dashboard/stats` |
 | Candidates | seed data | `/jobs/:id/candidates` |
 | Workflows | localStorage | `/jobs/:id/workflow` |
-| Uploads | localStorage | `/jobs/:id/candidates/upload` |
+| Uploads | localStorage | `/jobs/:id/candidates/upload` + `/process` |
 | Requirements | mock AI extract | `/jobs/:id` |
-| Candidate reports | mock AI report | `/candidates/:id` |
+| Candidate reports | mock AI report | `/candidates/:id/report` |
 
 Copy `frontend/.env.example` to `frontend/.env` (defaults to mock mode).
 
