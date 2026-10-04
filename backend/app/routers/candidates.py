@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -18,6 +19,18 @@ def get_candidate(
     current_user: Recruiter = Depends(get_current_recruiter),
 ) -> CandidateDetailResponse:
     return candidate_service.get_candidate(db, current_user.id, candidate_id)
+
+
+@router.get("/{candidate_id}/resume")
+def download_candidate_resume(
+    candidate_id: str,
+    db: Session = Depends(get_db),
+    current_user: Recruiter = Depends(get_current_recruiter),
+) -> FileResponse:
+    resume_path, filename = candidate_service.get_candidate_resume_path(
+        db, current_user.id, candidate_id
+    )
+    return FileResponse(resume_path, filename=filename, media_type="application/octet-stream")
 
 
 @router.get("/{candidate_id}/report", response_model=CandidateReportResponse)

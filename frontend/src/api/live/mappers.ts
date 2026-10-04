@@ -45,6 +45,7 @@ type BackendCandidate = {
   eval_score: number | null;
   overall_score: number | null;
   resume_file_name?: string;
+  parse_error?: string | null;
   created_at: string;
 };
 
@@ -129,6 +130,7 @@ export function mapCandidate(data: BackendCandidate): Candidate {
     evalScore: data.eval_score,
     overallScore: data.overall_score,
     resumeFileName: data.resume_file_name,
+    parseError: data.parse_error ?? null,
     addedAt: data.created_at.slice(0, 10),
   };
 }

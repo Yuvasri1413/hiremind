@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from app.config import settings
 from app.database import Base, SessionLocal, engine
@@ -10,9 +11,19 @@ from app.services.candidate_service import ensure_upload_dir
 from app.services.job_service import seed_demo_data
 
 
+def _ensure_sqlite_schema() -> None:
+    if not settings.database_url.startswith("sqlite"):
+        return
+    with engine.begin() as connection:
+        columns = connection.execute(text("PRAGMA table_info(candidates)")).fetchall()
+        if columns and not any(column[1] == "parse_error" for column in columns):
+            connection.execute(text("ALTER TABLE candidates ADD COLUMN parse_error VARCHAR(500)"))
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
+    _ensure_sqlite_schema()
     ensure_upload_dir()
     db = SessionLocal()
     try:

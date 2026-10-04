@@ -45,8 +45,14 @@ export const liveAuthService: AuthService = {
     setToken(null);
   },
 
-  async changePassword() {
-    throw new Error('Change password is not available on the live API yet.');
+  async changePassword(_userId, currentPassword, newPassword) {
+    await liveFetch('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({
+        current_password: currentPassword,
+        new_password: newPassword,
+      }),
+    });
   },
 
   async requestPasswordReset() {

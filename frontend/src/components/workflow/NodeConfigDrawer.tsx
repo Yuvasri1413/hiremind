@@ -1,4 +1,6 @@
+import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import Drawer from '@mui/material/Drawer';
 import Slider from '@mui/material/Slider';
@@ -17,6 +19,7 @@ type NodeConfigDrawerProps = {
   node: Node<WorkflowNodeData> | null;
   onClose: () => void;
   onConfigChange: (nodeId: string, config: WorkflowNodeConfig) => void;
+  onDeleteNode?: (nodeId: string) => void;
   readOnly?: boolean;
 };
 
@@ -86,6 +89,7 @@ export function NodeConfigDrawer({
   node,
   onClose,
   onConfigChange,
+  onDeleteNode,
   readOnly,
 }: NodeConfigDrawerProps) {
   const { tokens: t } = useThemeMode();
@@ -109,6 +113,22 @@ export function NodeConfigDrawer({
           {readOnly ? 'View node settings' : 'Click save workflow to persist changes'}
         </Typography>
         <Divider sx={{ borderColor: t.borderGold, mb: 2 }} />
+
+        {!readOnly && onDeleteNode && (
+          <Button
+            color="error"
+            variant="outlined"
+            startIcon={<DeleteOutlinedIcon />}
+            fullWidth
+            sx={{ mb: 2 }}
+            onClick={() => {
+              onDeleteNode(node.id);
+              onClose();
+            }}
+          >
+            Delete node
+          </Button>
+        )}
 
         {nodeType === 'parse' && (
           <Typography variant="body2" color="text.secondary">

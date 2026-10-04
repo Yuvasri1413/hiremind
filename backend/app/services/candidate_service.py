@@ -17,6 +17,7 @@ from app.schemas.candidate import (
 )
 from app.schemas.candidate_report import CandidateReportResponse
 from app.services.candidate_report_service import build_candidate_report
+from app.services.jd_processor import requirements_from_model
 from app.services.job_service import _get_owned_job
 from app.services.mock_pipeline import (
     build_pipeline_stages,
@@ -25,6 +26,7 @@ from app.services.mock_pipeline import (
     recompute_job_ranks,
 )
 from app.services.orchestrator import execute_for_candidate
+from app.services.resume_parser import parse_resume_file
 
 ALLOWED_EXTENSIONS = {".pdf", ".doc", ".docx"}
 ALLOWED_CONTENT_TYPES = {
@@ -53,6 +55,7 @@ def _to_candidate_response(candidate: Candidate) -> CandidateResponse:
         eval_score=candidate.eval_score,
         overall_score=candidate.overall_score,
         resume_file_name=candidate.resume_file_name,
+        parse_error=candidate.parse_error,
         created_at=candidate.created_at,
     )
 
@@ -144,7 +147,8 @@ async def upload_resumes(
     if not files:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No files uploaded")
 
-    _get_owned_job(db, recruiter_id, job_id)
+    job = _get_owned_job(db, recruiter_id, job_id)
+    requirements = requirements_from_model(job.requirements) if job.requirements else None
     upload_root = ensure_upload_dir()
     job_dir = upload_root / job_id
     job_dir.mkdir(parents=True, exist_ok=True)
@@ -161,13 +165,22 @@ async def upload_resumes(
         with destination.open("wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
+        parsed, parse_error = parse_resume_file(
+            str(destination),
+            fallback_name=name,
+            fallback_email=email,
+            requirements=requirements,
+        )
+
         candidate = Candidate(
             job_id=job_id,
-            name=name,
-            email=email,
+            name=parsed.name if parsed else name,
+            email=parsed.email if parsed else email,
+            experience_years=parsed.profile.experience_years if parsed else 0,
             status=CandidateStatus.pending,
             resume_file_name=filename,
             resume_path=str(destination),
+            parse_error=parse_error,
         )
         db.add(candidate)
         created.append(candidate)
@@ -176,8 +189,29 @@ async def upload_resumes(
     for candidate in created:
         db.refresh(candidate)
 
-    items = [_to_candidate_response(candidate) for candidate in created]
+    refreshed_job = _get_owned_job(db, recruiter_id, job_id)
+    for candidate in created:
+        execute_for_candidate(db, refreshed_job, candidate)
+    recompute_job_ranks(db, job_id)
+
+    refreshed = (
+        db.query(Candidate)
+        .filter(Candidate.id.in_([candidate.id for candidate in created]))
+        .all()
+    )
+    items = [_to_candidate_response(candidate) for candidate in refreshed]
     return CandidateListResponse(items=items, total=len(items))
+
+
+def get_candidate_resume_path(db: Session, recruiter_id: str, candidate_id: str) -> tuple[Path, str]:
+    candidate = _get_owned_candidate(db, recruiter_id, candidate_id)
+    if not candidate.resume_path:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume file not available")
+    resume_path = Path(candidate.resume_path)
+    if not resume_path.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume file not found")
+    filename = candidate.resume_file_name or resume_path.name
+    return resume_path, filename
 
 
 def get_candidate_report(db: Session, recruiter_id: str, candidate_id: str) -> CandidateReportResponse:

@@ -1,6 +1,8 @@
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Alert from '@mui/material/Alert';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
 import Paper from '@mui/material/Paper';
@@ -8,6 +10,8 @@ import Typography from '@mui/material/Typography';
 import { useEffect, useState } from 'react';
 import { Link as RouterLink, Navigate, useParams } from 'react-router-dom';
 import { api } from '../api';
+import { API_BASE_URL } from '../api/config';
+import { getToken } from '../api/live/tokenStorage';
 import {
   InterviewQuestionsSection,
   RecommendationChip,
@@ -40,6 +44,8 @@ export function CandidateDetailPage() {
   if (candidatesLoading) return null;
   if (!candidate) return <Navigate to="/jobs" replace />;
 
+  const activeCandidate = candidate;
+
   const hasReportContent =
     report &&
     (report.parsedProfile ||
@@ -47,6 +53,46 @@ export function CandidateDetailPage() {
       report.skillMatch ||
       report.evaluation ||
       report.interviewQuestions);
+
+  async function downloadResume() {
+    if (!candidateId) return;
+    const token = getToken();
+    const response = await fetch(`${API_BASE_URL}/candidates/${candidateId}/resume`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!response.ok) throw new Error('Could not download resume');
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = activeCandidate.resumeFileName || 'resume.pdf';
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function exportInterviewQuestions() {
+    if (!report?.interviewQuestions) return;
+    const { technical, behavioral, gapProbing } = report.interviewQuestions;
+    const lines = [
+      `Interview questions — ${activeCandidate.name}`,
+      '',
+      'Technical',
+      ...technical.map((q, i) => `${i + 1}. ${q}`),
+      '',
+      'Behavioral',
+      ...behavioral.map((q, i) => `${i + 1}. ${q}`),
+      '',
+      'Gap probing',
+      ...gapProbing.map((q, i) => `${i + 1}. ${q}`),
+    ];
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `${activeCandidate.name.replace(/\s+/g, '_')}_interview_questions.txt`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
 
   return (
     <Box>
@@ -102,9 +148,25 @@ export function CandidateDetailPage() {
               />
             )}
             <CandidateStatusChip status={candidate.status} size="medium" />
+            {candidate.resumeFileName && (
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<DownloadOutlinedIcon />}
+                onClick={() => void downloadResume().catch(() => undefined)}
+              >
+                Resume
+              </Button>
+            )}
           </Box>
         </Box>
       </Paper>
+
+      {candidate.parseError && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          Resume parse note: {candidate.parseError}
+        </Alert>
+      )}
 
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
         <PipelineProgress stages={report?.pipeline ?? []} />
@@ -222,11 +284,18 @@ export function CandidateDetailPage() {
         )}
 
         {report?.interviewQuestions && (
-          <InterviewQuestionsSection
-            technical={report.interviewQuestions.technical}
-            behavioral={report.interviewQuestions.behavioral}
-            gapProbing={report.interviewQuestions.gapProbing}
-          />
+          <Box>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
+              <Button size="small" variant="outlined" onClick={exportInterviewQuestions}>
+                Export questions (.txt)
+              </Button>
+            </Box>
+            <InterviewQuestionsSection
+              technical={report.interviewQuestions.technical}
+              behavioral={report.interviewQuestions.behavioral}
+              gapProbing={report.interviewQuestions.gapProbing}
+            />
+          </Box>
         )}
       </Box>
     </Box>

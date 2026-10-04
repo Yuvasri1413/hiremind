@@ -7,8 +7,9 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { api } from '../api';
+import { api, isMockMode } from '../api';
 import type { DashboardStats, Job, JobFormValues } from '../types/job';
+import { useAuth } from './AuthContext';
 
 type JobsContextValue = {
   jobs: Job[];
@@ -28,6 +29,7 @@ type JobsProviderProps = {
 };
 
 export function JobsProvider({ children }: JobsProviderProps) {
+  const { isAuthenticated } = useAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
     totalJobs: 0,
@@ -37,12 +39,18 @@ export function JobsProvider({ children }: JobsProviderProps) {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
+    if (!isMockMode && !isAuthenticated) {
+      setJobs([]);
+      setStats({ totalJobs: 0, totalCandidates: 0, avgScore: 0 });
+      return;
+    }
     const [nextJobs, nextStats] = await Promise.all([api.jobs.list(), api.jobs.getStats()]);
     setJobs(nextJobs);
     setStats(nextStats);
-  }, []);
+  }, [isAuthenticated]);
 
   useEffect(() => {
+    setLoading(true);
     refresh().finally(() => setLoading(false));
   }, [refresh]);
 

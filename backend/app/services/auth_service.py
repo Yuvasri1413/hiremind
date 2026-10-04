@@ -4,7 +4,14 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.recruiter import Recruiter
-from app.schemas.auth import LoginRequest, RecruiterResponse, RegisterRequest, TokenResponse
+from app.schemas.auth import (
+    ChangePasswordRequest,
+    LoginRequest,
+    RecruiterResponse,
+    RegisterRequest,
+    TokenResponse,
+    UpdateProfileRequest,
+)
 from app.utils.security import create_access_token, decode_access_token, hash_password, verify_password
 
 security_scheme = HTTPBearer(auto_error=False)
@@ -54,3 +61,33 @@ def get_current_recruiter(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
 
     return recruiter
+
+
+def update_recruiter_profile(
+    db: Session,
+    recruiter: Recruiter,
+    payload: UpdateProfileRequest,
+) -> RecruiterResponse:
+    recruiter.name = payload.name.strip()
+    db.commit()
+    db.refresh(recruiter)
+    return RecruiterResponse.model_validate(recruiter)
+
+
+def change_recruiter_password(
+    db: Session,
+    recruiter: Recruiter,
+    payload: ChangePasswordRequest,
+) -> None:
+    if not verify_password(payload.current_password, recruiter.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect",
+        )
+    if payload.current_password == payload.new_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be different from current password",
+        )
+    recruiter.hashed_password = hash_password(payload.new_password)
+    db.commit()

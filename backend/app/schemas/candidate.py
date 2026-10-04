@@ -30,6 +30,7 @@ class CandidateResponse(BaseModel):
     eval_score: float | None = None
     overall_score: float | None = None
     resume_file_name: str = ""
+    parse_error: str | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

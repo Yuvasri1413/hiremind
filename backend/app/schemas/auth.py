@@ -19,6 +19,15 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8, max_length=128)
+
+
+class UpdateProfileRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=120)
+
+
 class RecruiterResponse(BaseModel):
     id: str
     name: str

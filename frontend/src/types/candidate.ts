@@ -21,6 +21,7 @@ export type Candidate = {
   evalScore: number | null;
   overallScore: number | null;
   resumeFileName?: string;
+  parseError?: string | null;
   addedAt: string;
 };
 

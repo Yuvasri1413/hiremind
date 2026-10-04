@@ -31,20 +31,109 @@ def _node(
     }
 
 
-def create_default_workflow() -> dict:
-    nodes = [
-        _node("parse-1", "parse", "Parse", 0, 120),
-        _node("screen-1", "screen", "Screen", 220, 120),
-        _node("match-1", "match", "Skill Match", 440, 120),
-        _node("evaluate-1", "evaluate", "Evaluate", 660, 120),
-        _node("rank-1", "rank", "Rank", 880, 120),
-        _node("interview-1", "interview", "Interview", 1100, 120),
-    ]
-    edges = [
-        {"id": "e-parse-screen", "source": "parse-1", "target": "screen-1", "animated": True},
-        {"id": "e-screen-match", "source": "screen-1", "target": "match-1", "animated": True},
-        {"id": "e-match-evaluate", "source": "match-1", "target": "evaluate-1", "animated": True},
-        {"id": "e-evaluate-rank", "source": "evaluate-1", "target": "rank-1", "animated": True},
-        {"id": "e-rank-interview", "source": "rank-1", "target": "interview-1", "animated": True},
-    ]
+def create_pipeline(stages: list[tuple[str, str]]) -> dict:
+    """Build a linear workflow from (node_type, label) stages."""
+    nodes: list[dict] = []
+    edges: list[dict] = []
+    node_ids: list[str] = []
+
+    for index, (node_type, label) in enumerate(stages):
+        node_id = f"{node_type}-{index + 1}"
+        node_ids.append(node_id)
+        nodes.append(_node(node_id, node_type, label, index * 220, 120))
+        if index > 0:
+            edges.append(
+                {
+                    "id": f"e-{node_ids[index - 1]}-{node_id}",
+                    "source": node_ids[index - 1],
+                    "target": node_id,
+                    "animated": True,
+                }
+            )
+
     return {"nodes": nodes, "edges": edges}
+
+
+def create_default_workflow() -> dict:
+    return create_pipeline(
+        [
+            ("parse", "Parse"),
+            ("screen", "Screen"),
+            ("match", "Skill Match"),
+            ("evaluate", "Evaluate"),
+            ("rank", "Rank"),
+            ("interview", "Interview"),
+        ]
+    )
+
+
+def create_frontend_workflow() -> dict:
+    """Shorter pipeline — ranking without interview generation."""
+    return create_pipeline(
+        [
+            ("parse", "Parse"),
+            ("screen", "Screen"),
+            ("match", "Skill Match"),
+            ("evaluate", "Evaluate"),
+            ("rank", "Rank"),
+        ]
+    )
+
+
+def create_data_analyst_workflow() -> dict:
+    """Analytics-focused — fast match and rank."""
+    graph = create_pipeline(
+        [
+            ("parse", "Parse"),
+            ("screen", "Screen"),
+            ("match", "Skill Match"),
+            ("rank", "Rank"),
+        ]
+    )
+    for node in graph["nodes"]:
+        if node["data"]["nodeType"] == "screen":
+            node["data"]["config"] = {"screenThreshold": 55}
+    return graph
+
+
+def create_ui_designer_workflow() -> dict:
+    """Portfolio-heavy — evaluate and interview, skip separate rank stage."""
+    return create_pipeline(
+        [
+            ("parse", "Parse"),
+            ("screen", "Screen"),
+            ("evaluate", "Evaluate"),
+            ("interview", "Interview"),
+        ]
+    )
+
+
+def create_devops_workflow() -> dict:
+    """Full pipeline with stricter screening."""
+    graph = create_default_workflow()
+    for node in graph["nodes"]:
+        if node["data"]["nodeType"] == "screen":
+            node["data"]["config"] = {"screenThreshold": 70}
+    return graph
+
+
+WORKFLOW_BY_JOB_TITLE: dict[str, str] = {
+    "Backend Developer": "full",
+    "Frontend Developer": "frontend",
+    "Data Analyst": "data_analyst",
+    "DevOps Engineer": "devops",
+    "UI Designer": "ui_designer",
+}
+
+
+def workflow_for_job_title(title: str) -> dict:
+    key = WORKFLOW_BY_JOB_TITLE.get(title, "full")
+    if key == "frontend":
+        return create_frontend_workflow()
+    if key == "data_analyst":
+        return create_data_analyst_workflow()
+    if key == "ui_designer":
+        return create_ui_designer_workflow()
+    if key == "devops":
+        return create_devops_workflow()
+    return create_default_workflow()
